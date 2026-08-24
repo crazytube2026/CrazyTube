@@ -1,134 +1,705 @@
-wuimport 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:video_player/video_player.dart';
+import 'package:flutter/material.dart';
 
-void main() => runApp(const CrazyTubeApp());
+void main() {
+  runApp(const CrazyTubeApp());
+}
 
 class CrazyTubeApp extends StatelessWidget {
   const CrazyTubeApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'CrazyTube',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        scaffoldBackgroundColor: const Color(0xFFF8F7FB),
-        textTheme: GoogleFonts.poppinsTextTheme(),
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF0B0B0F),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF7C4DFF),
+          brightness: Brightness.dark,
+        ),
         useMaterial3: true,
       ),
-      home: const LoginPage(),
+      home: const HomePage(),
     );
   }
 }
 
-class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int currentIndex = 0;
+
+  final List<String> videos = [
+    'CrazyTube Featured Video',
+    'Amazing Short Video',
+    'Funny Moments',
+    'Travel & Adventure',
+    'Music & Entertainment',
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Container(width: 92, height: 92, decoration: BoxDecoration(color: Colors.deepPurple, borderRadius: BorderRadius.circular(28)), child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 58)),
-              const SizedBox(height: 22),
-              Text('CrazyTube', style: GoogleFonts.poppins(fontSize: 34, fontWeight: FontWeight.w800)),
-              const Text('Watch • Create • Earn'),
-              const SizedBox(height: 42),
-              SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainShell())), icon: const Icon(Icons.login), label: const Padding(padding: EdgeInsets.all(14), child: Text('Continue with Google')))),
-              const SizedBox(height: 12),
-              const Text('1 Google account = 1 CrazyTube channel', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
-            ]),
-          ),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0B0B0F),
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF7C4DFF),
+                    Color(0xFFFF4081),
+                  ],
+                ),
+              ),
+              child: const Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'CrazyTube',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+              ),
+            ),
+          ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_none),
+            onPressed: () {},
+          ),
+          const Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: CircleAvatar(
+              radius: 17,
+              child: Icon(Icons.person, size: 20),
+            ),
+          ),
+        ],
       ),
-    );
-  }
-}
 
-class MainShell extends StatefulWidget {
-  const MainShell({super.key});
-  @override State<MainShell> createState() => _MainShellState();
-}
-class _MainShellState extends State<MainShell> {
-  int index = 0;
-  final pages = const [HomePage(), ReelsPage(), UploadPage(), NotificationsPage(), ProfilePage()];
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: pages[index],
+      body: IndexedStack(
+        index: currentIndex,
+        children: [
+          HomeFeed(videos: videos),
+          const ReelsPage(),
+          const CreatePage(),
+          const WalletPage(),
+          const ProfilePage(),
+        ],
+      ),
+
       bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => setState(() => index = i),
+        backgroundColor: const Color(0xFF121217),
+        selectedIndex: currentIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            currentIndex = index;
+          });
+        },
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.video_library_outlined), selectedIcon: Icon(Icons.video_library), label: 'Reels'),
-          NavigationDestination(icon: Icon(Icons.add_circle_outline, size: 32), selectedIcon: Icon(Icons.add_circle, size: 32), label: 'Create'),
-          NavigationDestination(icon: Icon(Icons.notifications_none), selectedIcon: Icon(Icons.notifications), label: 'Alerts'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'You'),
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.video_library_outlined),
+            selectedIcon: Icon(Icons.video_library),
+            label: 'Reels',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.add_circle_outline),
+            selectedIcon: Icon(Icons.add_circle),
+            label: 'Create',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: Icon(Icons.account_balance_wallet),
+            label: 'Wallet',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
         ],
       ),
     );
   }
 }
 
-class VideoItem { final String title, creator, duration; final int views; const VideoItem(this.title, this.creator, this.duration, this.views); }
-const videos = [
-  VideoItem('Street Food Challenge 🔥', 'CrazyFood BD', '08:32', 12500),
-  VideoItem('Amazing Rangpur Vlog', 'Sahad Vlogs', '06:18', 8300),
-  VideoItem('Easy Chicken Burger Recipe', 'Food Lab', '09:45', 22100),
-  VideoItem('Funny Moments 😂', 'Crazy Creator', '04:11', 53200),
-];
+class HomeFeed extends StatelessWidget {
+  final List<String> videos;
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  const HomeFeed({
+    super.key,
+    required this.videos,
+  });
+
   @override
-  Widget build(BuildContext context) => CustomScrollView(slivers: [
-    SliverAppBar(title: const Text('CrazyTube'), floating: true, actions: [IconButton(onPressed: () {}, icon: const Icon(Icons.search)), IconButton(onPressed: () {}, icon: const Icon(Icons.account_balance_wallet_outlined))]),
-    const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(16, 10, 16, 6), child: Text('For You', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)))),
-    SliverList(delegate: SliverChildBuilderDelegate((context, i) => VideoCard(video: videos[i]), childCount: videos.length)),
-  ]);
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFF24134D),
+                Color(0xFF151522),
+              ],
+            ),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Welcome to CrazyTube 👋',
+                style: TextStyle(
+                  fontSize: 23,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 7),
+              Text(
+                'Watch, create & earn from your videos.',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        const Text(
+          'Trending Videos',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        ...videos.asMap().entries.map(
+          (entry) => VideoCard(
+            title: entry.value,
+            number: entry.key + 1,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class VideoCard extends StatelessWidget {
-  final VideoItem video; const VideoCard({super.key, required this.video});
+  final String title;
+  final int number;
+
+  const VideoCard({
+    super.key,
+    required this.title,
+    required this.number,
+  });
+
   @override
-  Widget build(BuildContext context) => Card(margin: const EdgeInsets.fromLTRB(12, 8, 12, 8), clipBehavior: Clip.antiAlias, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    InkWell(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => VideoPage(title: video.title))), child: AspectRatio(aspectRatio: 16/9, child: Container(color: Colors.black12, child: const Center(child: Icon(Icons.play_circle_fill, size: 64, color: Colors.deepPurple))))),
-    ListTile(leading: const CircleAvatar(child: Icon(Icons.person)), title: Text(video.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text('${video.creator} • ${video.views} views • ${video.duration}'), trailing: const Icon(Icons.more_vert)),
-    const Padding(padding: EdgeInsets.fromLTRB(16, 0, 16, 12), child: Row(children: [Icon(Icons.thumb_up_alt_outlined, size: 20), SizedBox(width: 6), Text('Like'), SizedBox(width: 20), Icon(Icons.comment_outlined, size: 20), SizedBox(width: 6), Text('Comment'), Spacer(), Icon(Icons.share_outlined, size: 20)]))
-  ]));
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFF15151C),
+      margin: const EdgeInsets.only(bottom: 14),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF311B92 + (number * 100)),
+                    const Color(0xFF12121A),
+                  ],
+                ),
+              ),
+              child: Center(
+                child: Container(
+                  width: 58,
+                  height: 58,
+                  decoration: const BoxDecoration(
+                    color: Colors.white24,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow,
+                    size: 35,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 10, 4),
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  radius: 19,
+                  child: Icon(Icons.person),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () {},
+                ),
+              ],
+            ),
+          ),
+
+          const Padding(
+            padding: EdgeInsets.fromLTRB(62, 0, 12, 12),
+            child: Text(
+              'CrazyTube Creator • 1.2K views • 2h ago',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+              ),
+            ),
+          ),
+
+          const Padding(
+            padding: EdgeInsets.fromLTRB(55, 0, 12, 12),
+            child: Row(
+              children: [
+                Icon(Icons.thumb_up_outlined, size: 19),
+                SizedBox(width: 5),
+                Text('245'),
+                SizedBox(width: 20),
+                Icon(Icons.comment_outlined, size: 19),
+                SizedBox(width: 5),
+                Text('32'),
+                SizedBox(width: 20),
+                Icon(Icons.share_outlined, size: 19),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class ReelsPage extends StatelessWidget {
   const ReelsPage({super.key});
+
   @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Reels'), actions: [IconButton(onPressed: () {}, icon: const Icon(Icons.search))]), body: PageView.builder(scrollDirection: Axis.vertical, itemCount: videos.length, itemBuilder: (_, i) => Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(18)), child: Stack(fit: StackFit.expand, children: [const Center(child: Icon(Icons.play_circle_fill, color: Colors.white, size: 76)), Positioned(left: 18, right: 18, bottom: 24, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(videos[i].title, style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text('@${videos[i].creator.replaceAll(' ', '').toLowerCase()}', style: const TextStyle(color: Colors.white70))])), const Column(children: [Icon(Icons.favorite_border, color: Colors.white, size: 34), SizedBox(height: 18), Icon(Icons.comment_outlined, color: Colors.white, size: 32), SizedBox(height: 18), Icon(Icons.share_outlined, color: Colors.white, size: 32)])]))])));
+  Widget build(BuildContext context) {
+    return PageView.builder(
+      scrollDirection: Axis.vertical,
+      itemCount: 5,
+      itemBuilder: (context, index) {
+        return Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF30206B),
+                Color(0xFF09090D),
+              ],
+            ),
+          ),
+          child: Stack(
+            children: [
+              const Center(
+                child: Icon(
+                  Icons.play_circle_fill,
+                  size: 75,
+                  color: Colors.white70,
+                ),
+              ),
+
+              Positioned(
+                left: 18,
+                right: 75,
+                bottom: 25,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CrazyTube Reel #${index + 1}',
+                      style: const TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Watch this amazing short video on CrazyTube.',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+
+              Positioned(
+                right: 15,
+                bottom: 25,
+                child: Column(
+                  children: [
+                    _ReelButton(
+                      icon: Icons.favorite_border,
+                      text: '1.2K',
+                    ),
+                    _ReelButton(
+                      icon: Icons.comment_outlined,
+                      text: '248',
+                    ),
+                    _ReelButton(
+                      icon: Icons.share_outlined,
+                      text: 'Share',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
-class UploadPage extends StatefulWidget { const UploadPage({super.key}); @override State<UploadPage> createState() => _UploadPageState(); }
-class _UploadPageState extends State<UploadPage> {
-  final picker = ImagePicker(); String? picked; String type = 'Long Video';
-  Future<void> pickVideo() async { final x = await picker.pickVideo(source: ImageSource.gallery); if (x == null) return; setState(() => picked = x.path); }
-  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Create')), body: ListView(padding: const EdgeInsets.all(20), children: [
-    const Text('Choose video type', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 12),
-    SegmentedButton<String>(segments: const [ButtonSegment(value: 'Reel', label: Text('Reel'), icon: Icon(Icons.smartphone)), ButtonSegment(value: 'Long Video', label: Text('Long Video'), icon: Icon(Icons.ondemand_video))], selected: {type}, onSelectionChanged: (s) => setState(() => type = s.first)),
-    const SizedBox(height: 22), OutlinedButton.icon(onPressed: pickVideo, icon: const Icon(Icons.video_library), label: Text(picked == null ? 'Select Video' : 'Video Selected')),
-    if (type == 'Long Video') const Padding(padding: EdgeInsets.only(top: 10), child: Text('Maximum duration: 10 minutes', style: TextStyle(color: Colors.deepPurple))),
-    const SizedBox(height: 22), TextField(decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder())), const SizedBox(height: 14), TextField(maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())), const SizedBox(height: 14), TextField(decoration: const InputDecoration(labelText: 'Hashtags', hintText: '#CrazyTube #Bangladesh', border: OutlineInputBorder())), const SizedBox(height: 24), FilledButton.icon(onPressed: picked == null ? null : () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload queued in prototype. Backend required for real upload.'))), icon: const Icon(Icons.cloud_upload), label: const Padding(padding: EdgeInsets.all(12), child: Text('Publish')))
-  ]));
+class _ReelButton extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _ReelButton({
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        children: [
+          Icon(icon, size: 28),
+          const SizedBox(height: 4),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class VideoPage extends StatefulWidget { final String title; const VideoPage({super.key, required this.title}); @override State<VideoPage> createState() => _VideoPageState(); }
-class _VideoPageState extends State<VideoPage> { VideoPlayerController? controller; @override void dispose(){controller?.dispose(); super.dispose();} @override Widget build(BuildContext context)=>Scaffold(appBar: AppBar(title: Text(widget.title)), body: Column(children:[AspectRatio(aspectRatio:16/9, child: Container(color:Colors.black, child: const Center(child: Icon(Icons.play_circle_fill,color:Colors.white,size:72)))), ListTile(title:Text(widget.title,style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:const Text('12.5K views • 2 days ago')), const Padding(padding:EdgeInsets.all(16),child:Row(children:[Icon(Icons.thumb_up_alt_outlined),SizedBox(width:8),Text('Like'),SizedBox(width:24),Icon(Icons.comment_outlined),SizedBox(width:8),Text('Comment'),Spacer(),Icon(Icons.share_outlined)])), const Divider(), const ListTile(leading:CircleAvatar(child:Icon(Icons.person)),title:Text('CrazyFood BD'),subtitle:Text('Food creator'),trailing:FilledButton(onPressed:null,child:Text('Follow')))])); }
+class CreatePage extends StatelessWidget {
+  const CreatePage({super.key});
 
-class NotificationsPage extends StatelessWidget { const NotificationsPage({super.key}); @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Notifications')), body:ListView(children:const [ListTile(leading:Icon(Icons.favorite,color:Colors.red),title:Text('Someone liked your video'),subtitle:Text('Street Food Challenge')),ListTile(leading:Icon(Icons.person_add,color:Colors.deepPurple),title:Text('New follower'),subtitle:Text('Crazy Creator followed you')),ListTile(leading:Icon(Icons.monetization_on,color:Colors.green),title:Text('Earnings update'),subtitle:Text('Your estimated earning is ৳3,250'))])); } 
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF7C4DFF),
+                    Color(0xFFFF4081),
+                  ],
+                ),
+              ),
+              child: const Icon(
+                Icons.video_call,
+                size: 48,
+              ),
+            ),
+            const SizedBox(height: 25),
+            const Text(
+              'Create on CrazyTube',
+              style: TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Upload a Reel or a Long Video up to 10 minutes.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white60),
+            ),
+            const SizedBox(height: 25),
+            FilledButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Upload system will be connected next.',
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.upload),
+              label: const Text('Upload Video'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-class ProfilePage extends StatelessWidget { const ProfilePage({super.key}); @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('My Channel'),actions:[IconButton(onPressed:(){Navigator.push(context,MaterialPageRoute(builder:(_)=>const CreatorStudioPage()));},icon:const Icon(Icons.analytics_outlined))]), body:ListView(padding:const EdgeInsets.all(18),children:[const Center(child:CircleAvatar(radius:44,child:Icon(Icons.person,size:48))),const SizedBox(height:10),const Center(child:Text('My CrazyTube Channel',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold))),const Center(child:Text('@mychannel • 0 followers')),const SizedBox(height:22),Row(mainAxisAlignment:MainAxisAlignment.spaceEvenly,children:const [Stat('Videos','0'),Stat('Views','0'),Stat('Followers','0')]),const SizedBox(height:24),FilledButton.icon(onPressed:(){Navigator.push(context,MaterialPageRoute(builder:(_)=>const CreatorStudioPage()));},icon:const Icon(Icons.dashboard),label:const Text('Creator Studio')),const SizedBox(height:12),OutlinedButton.icon(onPressed:(){},icon:const Icon(Icons.settings),label:const Text('Settings'))])); }
-class Stat extends StatelessWidget { final String a,b; const Stat(this.a,this.b,{super.key}); @override Widget build(BuildContext context)=>Column(children:[Text(b,style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)),Text(a)]); }
+class WalletPage extends StatelessWidget {
+  const WalletPage({super.key});
 
-class CreatorStudioPage extends StatelessWidget { const CreatorStudioPage({super.key}); @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Creator Studio')),body:ListView(padding:const EdgeInsets.all(16),children:[const Text('Overview',style:TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const SizedBox(height:14),GridView.count(shrinkWrap:true,crossAxisCount:2,childAspectRatio:1.5,crossAxisSpacing:12,mainAxisSpacing:12,children:const [Metric('Total Views','125,450'),Metric('Followers','8,540'),Metric('Watch Time','1,240 h'),Metric('Estimated Earnings','৳3,250')]),const SizedBox(height:24),const Card(child:ListTile(leading:Icon(Icons.monetization_on,color:Colors.green),title:Text('Monetization'),subtitle:Text('Not connected in prototype'),trailing:Icon(Icons.chevron_right))),const Card(child:ListTile(leading:Icon(Icons.account_balance_wallet),title:Text('Wallet'),subtitle:Text('৳3,250 estimated'),trailing:Icon(Icons.chevron_right))),const Card(child:ListTile(leading:Icon(Icons.analytics),title:Text('Video Analytics'),subtitle:Text('Views, watch time, likes and retention'),trailing:Icon(Icons.chevron_right)))])); }
-class Metric extends StatelessWidget { final String a,b; const Metric(this.a,this.b,{super.key}); @override Widget build(BuildContext context)=>Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.center,children:[Text(b,style:const TextStyle(fontSize:22,fontWeight:FontWeight.bold)),Text(a)]))); }
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        const Text(
+          'Wallet & Earnings',
+          style: TextStyle(
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFF4527A0),
+                Color(0xFF7B1FA2),
+              ],
+            ),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Estimated Earnings',
+                style: TextStyle(color: Colors.white70),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '৳ 3,250',
+                style: TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '+12.5% this month',
+                style: TextStyle(color: Colors.white70),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        const ListTile(
+          leading: CircleAvatar(
+            child: Icon(Icons.monetization_on),
+          ),
+          title: Text('Creator Earnings'),
+          subtitle: Text('Video monetization'),
+          trailing: Text('৳ 2,450'),
+        ),
+
+        const ListTile(
+          leading: CircleAvatar(
+            child: Icon(Icons.ads_click),
+          ),
+          title: Text('Ad Revenue'),
+          subtitle: Text('Advertisements'),
+          trailing: Text('৳ 800'),
+        ),
+
+        const SizedBox(height: 20),
+
+        SizedBox(
+          height: 50,
+          child: FilledButton(
+            onPressed: () {},
+            child: const Text('Request Withdrawal'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        const SizedBox(height: 15),
+
+        const Center(
+          child: CircleAvatar(
+            radius: 48,
+            child: Icon(
+              Icons.person,
+              size: 55,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        const Center(
+          child: Text(
+            'CrazyTube Creator',
+            style: TextStyle(
+              fontSize: 23,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+
+        const Center(
+          child: Text(
+            '@crazycreator',
+            style: TextStyle(
+              color: Colors.white54,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 25),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: const [
+            _ProfileStat(
+              number: '125',
+              label: 'Videos',
+            ),
+            _ProfileStat(
+              number: '12.5K',
+              label: 'Followers',
+            ),
+            _ProfileStat(
+              number: '850K',
+              label: 'Views',
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 25),
+
+        ListTile(
+          leading: const Icon(Icons.video_library),
+          title: const Text('Creator Studio'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {},
+        ),
+
+        ListTile(
+          leading: const Icon(Icons.settings),
+          title: const Text('Settings'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {},
+        ),
+
+        ListTile(
+          leading: const Icon(Icons.help_outline),
+          title: const Text('Help & Support'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () {},
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileStat extends StatelessWidget {
+  final String number;
+  final String label;
+
+  const _ProfileStat({
+    required this.number,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          number,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white54,
+          ),
+        ),
+      ],
+    );
+  }
+}
