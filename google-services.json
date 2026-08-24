@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "9473811896",
+    "project_id": "crazytube-fc35d",
+    "storage_bucket": "crazytube-fc35d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:9473811896:android:56e88978878d0195909b4d",
+        "android_client_info": {
+          "package_name": "com.crazytube.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnJLV-UU8KTEWS2GkrD_fmd3qNuyZRjoU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
