@@ -20,7 +20,8 @@ jobs:
           channel: stable
 
       - name: Create Android project
-        run: flutter create --platforms=android --org com.crazytube .
+        run: |
+          flutter create --platforms=android --org com.crazytube .
 
       - name: Copy Firebase configuration
         run: |
@@ -38,7 +39,7 @@ jobs:
           if "com.google.gms.google-services" not in text:
               text = text.replace(
                   "plugins {",
-                  "plugins {\n    id(\"com.google.gms.google-services\") version \"4.4.2\" apply false",
+                  'plugins {\n    id("com.google.gms.google-services") version "4.4.2" apply false',
                   1
               )
               settings.write_text(text)
@@ -49,7 +50,7 @@ jobs:
           if "com.google.gms.google-services" not in text:
               text = text.replace(
                   "plugins {",
-                  "plugins {\n    id(\"com.google.gms.google-services\")",
+                  'plugins {\n    id("com.google.gms.google-services")',
                   1
               )
               app.write_text(text)
@@ -58,6 +59,7 @@ jobs:
       - name: Set application ID
         run: |
           sed -i 's/applicationId = ".*"/applicationId = "com.crazytube.app"/' android/app/build.gradle.kts
+          sed -i 's/namespace = ".*"/namespace = "com.crazytube.app"/' android/app/build.gradle.kts
 
       - name: Verify Firebase configuration
         run: |
@@ -70,15 +72,27 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
-      - name: Get APK SHA fingerprints
+      - name: Sign APK with Android debug certificate
         run: |
-          echo "===== APK SHA FINGERPRINTS ====="
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
-          "$APKSIGNER" verify --print-certs build/app/outputs/flutter-apk/app-release.apk
-          echo "===== END ====="
+
+          "$APKSIGNER" sign \
+            --ks "$HOME/.android/debug.keystore" \
+            --ks-key-alias androiddebugkey \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out build/app/outputs/flutter-apk/app-release-signed.apk \
+            build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Verify APK certificate
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+
+          "$APKSIGNER" verify --print-certs \
+            build/app/outputs/flutter-apk/app-release-signed.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: CrazyTube-Firebase-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-release-signed.apk
