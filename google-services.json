@@ -12,7 +12,20 @@
           "package_name": "com.crazytube.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "9473811896-ufc84iauf73rj40nlecvl8i5if7vd96n.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.crazytube.app",
+            "certificate_hash": "fa89c5c03b144f47264398c58cb0455be326831a"
+          }
+        },
+        {
+          "client_id": "9473811896-7o2ela8fqtgfu31q91fednd8kptvf53t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAnJLV-UU8KTEWS2GkrD_fmd3qNuyZRjoU"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "9473811896-7o2ela8fqtgfu31q91fednd8kptvf53t.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
