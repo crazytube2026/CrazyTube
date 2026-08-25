@@ -1,6 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp();
+
   runApp(const CrazyTubeApp());
 }
 
@@ -21,10 +29,407 @@ class CrazyTubeApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: const AuthGate(),
     );
   }
 }
+
+// ------------------------------------------------------------
+// AUTH GATE
+// ------------------------------------------------------------
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (snapshot.data == null) {
+          return const LoginPage();
+        }
+
+        return const ChannelCheckPage();
+      },
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// GOOGLE LOGIN
+// ------------------------------------------------------------
+
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  bool loading = false;
+
+  Future<void> signInWithGoogle() async {
+    setState(() {
+      loading = true;
+    });
+
+    try {
+      final GoogleSignInAccount? googleUser =
+          await GoogleSignIn().signIn();
+
+      if (googleUser == null) {
+        setState(() {
+          loading = false;
+        });
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(
+        credential,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Google Login failed: $e',
+          ),
+        ),
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // CrazyTube logo
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF7C4DFF),
+                      Color(0xFFFF4081),
+                    ],
+                  ),
+                ),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  size: 60,
+                  color: Colors.white,
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
+              const Text(
+                'CrazyTube',
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              const Text(
+                'Watch, Create & Earn',
+                style: TextStyle(
+                  color: Colors.white60,
+                  fontSize: 16,
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: FilledButton.icon(
+                  onPressed:
+                      loading ? null : signInWithGoogle,
+                  icon: const Icon(Icons.login),
+                  label: Text(
+                    loading
+                        ? 'Signing in...'
+                        : 'Continue with Google',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// CHECK CHANNEL
+// ------------------------------------------------------------
+
+class ChannelCheckPage extends StatelessWidget {
+  const ChannelCheckPage({super.key});
+
+  Future<bool> channelExists() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return false;
+    }
+
+    final doc = await FirebaseFirestore.instance
+        .collection('channels')
+        .doc(user.uid)
+        .get();
+
+    return doc.exists;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: channelExists(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (snapshot.data == true) {
+          return const HomePage();
+        }
+
+        return const CreateChannelPage();
+      },
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// CREATE CHANNEL
+// ------------------------------------------------------------
+
+class CreateChannelPage extends StatefulWidget {
+  const CreateChannelPage({super.key});
+
+  @override
+  State<CreateChannelPage> createState() =>
+      _CreateChannelPageState();
+}
+
+class _CreateChannelPageState
+    extends State<CreateChannelPage> {
+  final TextEditingController channelNameController =
+      TextEditingController();
+
+  bool creating = false;
+
+  Future<void> createChannel() async {
+    final channelName =
+        channelNameController.text.trim();
+
+    if (channelName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please enter a channel name.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    setState(() {
+      creating = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('channels')
+          .doc(user.uid)
+          .set({
+        'uid': user.uid,
+        'email': user.email,
+        'channelName': channelName,
+        'photoUrl': user.photoURL,
+        'followers': 0,
+        'views': 0,
+        'videos': 0,
+        'earnings': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const HomePage(),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Channel creation failed: $e',
+          ),
+        ),
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        creating = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Create Your Channel',
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+
+            CircleAvatar(
+              radius: 55,
+              backgroundImage:
+                  user?.photoURL != null
+                      ? NetworkImage(user!.photoURL!)
+                      : null,
+              child: user?.photoURL == null
+                  ? const Icon(
+                      Icons.person,
+                      size: 55,
+                    )
+                  : null,
+            ),
+
+            const SizedBox(height: 25),
+
+            const Text(
+              'Create your CrazyTube Channel',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            Text(
+              user?.email ?? '',
+              style: const TextStyle(
+                color: Colors.white54,
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            TextField(
+              controller: channelNameController,
+              decoration: InputDecoration(
+                labelText: 'Channel Name',
+                hintText: 'Example: Crazy Creator',
+                prefixIcon: const Icon(
+                  Icons.video_library,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: FilledButton.icon(
+                onPressed:
+                    creating ? null : createChannel,
+                icon: const Icon(
+                  Icons.add_circle,
+                ),
+                label: Text(
+                  creating
+                      ? 'Creating Channel...'
+                      : 'Create Channel',
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextButton(
+              onPressed: () {
+                FirebaseAuth.instance.signOut();
+              },
+              child: const Text(
+                'Use another Google Account',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// HOME
+// ------------------------------------------------------------
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -34,87 +439,26 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int currentIndex = 0;
+  int selectedIndex = 0;
 
-  final List<String> videos = [
-    'CrazyTube Featured Video',
-    'Amazing Short Video',
-    'Funny Moments',
-    'Travel & Adventure',
-    'Music & Entertainment',
+  final List<Widget> pages = const [
+    HomeFeed(),
+    ReelsPage(),
+    CreatePage(),
+    EarningsPage(),
+    ProfilePage(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0B0B0F),
-        titleSpacing: 16,
-        title: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF7C4DFF),
-                    Color(0xFFFF4081),
-                  ],
-                ),
-              ),
-              child: const Icon(
-                Icons.play_arrow_rounded,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'CrazyTube',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () {},
-          ),
-          const Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: CircleAvatar(
-              radius: 17,
-              child: Icon(Icons.person, size: 20),
-            ),
-          ),
-        ],
-      ),
-
-      body: IndexedStack(
-        index: currentIndex,
-        children: [
-          HomeFeed(videos: videos),
-          const ReelsPage(),
-          const CreatePage(),
-          const WalletPage(),
-          const ProfilePage(),
-        ],
-      ),
+      body: pages[selectedIndex],
 
       bottomNavigationBar: NavigationBar(
-        backgroundColor: const Color(0xFF121217),
-        selectedIndex: currentIndex,
+        selectedIndex: selectedIndex,
         onDestinationSelected: (index) {
           setState(() {
-            currentIndex = index;
+            selectedIndex = index;
           });
         },
         destinations: const [
@@ -135,8 +479,9 @@ class _HomePageState extends State<HomePage> {
           ),
           NavigationDestination(
             icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Wallet',
+            selectedIcon:
+                Icon(Icons.account_balance_wallet),
+            label: 'Earn',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
@@ -149,173 +494,184 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class HomeFeed extends StatelessWidget {
-  final List<String> videos;
+// ------------------------------------------------------------
+// HOME FEED
+// ------------------------------------------------------------
 
-  const HomeFeed({
-    super.key,
-    required this.videos,
-  });
+class HomeFeed extends StatelessWidget {
+  const HomeFeed({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFF24134D),
-                Color(0xFF151522),
-              ],
-            ),
-          ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Welcome to CrazyTube 👋',
-                style: TextStyle(
-                  fontSize: 23,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 7),
-              Text(
-                'Watch, create & earn from your videos.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 15,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-
-        const Text(
-          'Trending Videos',
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'CrazyTube',
           style: TextStyle(
-            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 10),
-
-        ...videos.asMap().entries.map(
-          (entry) => VideoCard(
-            title: entry.value,
-            number: entry.key + 1,
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.search),
           ),
-        ),
-      ],
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.notifications_none,
+            ),
+          ),
+        ],
+      ),
+
+      body: StreamBuilder<
+          QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('videos')
+            .orderBy(
+              'createdAt',
+              descending: true,
+            )
+            .limit(30)
+            .snapshots(),
+
+        builder: (context, snapshot) {
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          final videos =
+              snapshot.data?.docs ?? [];
+
+          if (videos.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(25),
+                child: Text(
+                  'Welcome to CrazyTube! 🎉\n\n'
+                  'No videos yet.\n'
+                  'Be the first creator!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 17,
+                    color: Colors.white70,
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: videos.length,
+            itemBuilder: (context, index) {
+              final data =
+                  videos[index].data();
+
+              return VideoCard(
+                title:
+                    data['title'] ??
+                        'Untitled Video',
+                type:
+                    data['type'] ??
+                        'Long Video',
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
 
+// ------------------------------------------------------------
+// VIDEO CARD
+// ------------------------------------------------------------
+
 class VideoCard extends StatelessWidget {
   final String title;
-  final int number;
+  final String type;
 
   const VideoCard({
     super.key,
     required this.title,
-    required this.number,
+    required this.type,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF15151C),
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(
+        bottom: 15,
+      ),
       clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           AspectRatio(
             aspectRatio: 16 / 9,
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF311B92 + (number * 100)),
-                    const Color(0xFF12121A),
+                    Color(0xFF311B92),
+                    Color(0xFF15151C),
                   ],
                 ),
               ),
-              child: Center(
-                child: Container(
-                  width: 58,
-                  height: 58,
-                  decoration: const BoxDecoration(
-                    color: Colors.white24,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.play_arrow,
-                    size: 35,
-                    color: Colors.white,
-                  ),
+              child: const Center(
+                child: Icon(
+                  Icons.play_circle_fill,
+                  size: 65,
+                  color: Colors.white,
                 ),
               ),
             ),
           ),
 
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 10, 4),
+            padding: const EdgeInsets.all(14),
             child: Row(
               children: [
                 const CircleAvatar(
-                  radius: 19,
+                  radius: 20,
                   child: Icon(Icons.person),
                 ),
                 const SizedBox(width: 10),
+
                 Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight:
+                              FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'CrazyTube Creator • $type',
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: () {},
+
+                const Icon(
+                  Icons.more_vert,
                 ),
-              ],
-            ),
-          ),
-
-          const Padding(
-            padding: EdgeInsets.fromLTRB(62, 0, 12, 12),
-            child: Text(
-              'CrazyTube Creator • 1.2K views • 2h ago',
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-              ),
-            ),
-          ),
-
-          const Padding(
-            padding: EdgeInsets.fromLTRB(55, 0, 12, 12),
-            child: Row(
-              children: [
-                Icon(Icons.thumb_up_outlined, size: 19),
-                SizedBox(width: 5),
-                Text('245'),
-                SizedBox(width: 20),
-                Icon(Icons.comment_outlined, size: 19),
-                SizedBox(width: 5),
-                Text('32'),
-                SizedBox(width: 20),
-                Icon(Icons.share_outlined, size: 19),
               ],
             ),
           ),
@@ -324,110 +680,207 @@ class VideoCard extends StatelessWidget {
     );
   }
 }
+
+// ------------------------------------------------------------
+// REELS
+// ------------------------------------------------------------
 
 class ReelsPage extends StatelessWidget {
   const ReelsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return PageView.builder(
-      scrollDirection: Axis.vertical,
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF30206B),
-                Color(0xFF09090D),
-              ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('CrazyTube Reels'),
+      ),
+      body: PageView.builder(
+        scrollDirection: Axis.vertical,
+        itemCount: 5,
+        itemBuilder: (context, index) {
+          return Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius:
+                  BorderRadius.circular(18),
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFF4527A0),
+                  Color(0xFF09090D),
+                ],
+              ),
             ),
-          ),
-          child: Stack(
-            children: [
-              const Center(
-                child: Icon(
-                  Icons.play_circle_fill,
-                  size: 75,
-                  color: Colors.white70,
-                ),
+            child: const Center(
+              child: Icon(
+                Icons.play_circle_fill,
+                size: 80,
               ),
-
-              Positioned(
-                left: 18,
-                right: 75,
-                bottom: 25,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'CrazyTube Reel #${index + 1}',
-                      style: const TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Watch this amazing short video on CrazyTube.',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-
-              Positioned(
-                right: 15,
-                bottom: 25,
-                child: Column(
-                  children: [
-                    _ReelButton(
-                      icon: Icons.favorite_border,
-                      text: '1.2K',
-                    ),
-                    _ReelButton(
-                      icon: Icons.comment_outlined,
-                      text: '248',
-                    ),
-                    _ReelButton(
-                      icon: Icons.share_outlined,
-                      text: 'Share',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
-class _ReelButton extends StatelessWidget {
-  final IconData icon;
-  final String text;
+// ------------------------------------------------------------
+// CREATE / UPLOAD
+// ------------------------------------------------------------
 
-  const _ReelButton({
-    required this.icon,
-    required this.text,
-  });
+class CreatePage extends StatelessWidget {
+  const CreatePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Create',
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(25),
+          child: Column(
+            mainAxisAlignment:
+                MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.video_call,
+                size: 80,
+              ),
+
+              const SizedBox(height: 20),
+
+              const Text(
+                'Create on CrazyTube',
+                style: TextStyle(
+                  fontSize: 25,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              const Text(
+                'Upload Reels or Long Videos.\n'
+                'Long videos can be up to 10 minutes.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white60,
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
+              FilledButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Video upload system will be connected next.',
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.upload,
+                ),
+                label: const Text(
+                  'Upload Video',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+// EARNINGS
+// ------------------------------------------------------------
+
+class EarningsPage extends StatelessWidget {
+  const EarningsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Creator Earnings',
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
         children: [
-          Icon(icon, size: 28),
-          const SizedBox(height: 4),
-          Text(
-            text,
-            style: const TextStyle(fontSize: 12),
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              borderRadius:
+                  BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFF4527A0),
+                  Color(0xFF7B1FA2),
+                ],
+              ),
+            ),
+            child: const Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Estimated Earnings',
+                  style: TextStyle(
+                    color: Colors.white70,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '৳ 0',
+                  style: TextStyle(
+                    fontSize: 35,
+                    fontWeight:
+                        FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          const ListTile(
+            leading: CircleAvatar(
+              child: Icon(
+                Icons.monetization_on,
+              ),
+            ),
+            title: Text(
+              'Creator Earnings',
+            ),
+            subtitle: Text(
+              'Complete targets to qualify.',
+            ),
+          ),
+
+          const ListTile(
+            leading: CircleAvatar(
+              child: Icon(
+                Icons.analytics,
+              ),
+            ),
+            title: Text(
+              'Channel Performance',
+            ),
+            subtitle: Text(
+              'Views, followers and videos.',
+            ),
           ),
         ],
       ),
@@ -435,249 +888,128 @@ class _ReelButton extends StatelessWidget {
   }
 }
 
-class CreatePage extends StatelessWidget {
-  const CreatePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF7C4DFF),
-                    Color(0xFFFF4081),
-                  ],
-                ),
-              ),
-              child: const Icon(
-                Icons.video_call,
-                size: 48,
-              ),
-            ),
-            const SizedBox(height: 25),
-            const Text(
-              'Create on CrazyTube',
-              style: TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Upload a Reel or a Long Video up to 10 minutes.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white60),
-            ),
-            const SizedBox(height: 25),
-            FilledButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Upload system will be connected next.',
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.upload),
-              label: const Text('Upload Video'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class WalletPage extends StatelessWidget {
-  const WalletPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(18),
-      children: [
-        const Text(
-          'Wallet & Earnings',
-          style: TextStyle(
-            fontSize: 25,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 18),
-
-        Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFF4527A0),
-                Color(0xFF7B1FA2),
-              ],
-            ),
-          ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Estimated Earnings',
-                style: TextStyle(color: Colors.white70),
-              ),
-              SizedBox(height: 8),
-              Text(
-                '৳ 3,250',
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                '+12.5% this month',
-                style: TextStyle(color: Colors.white70),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        const ListTile(
-          leading: CircleAvatar(
-            child: Icon(Icons.monetization_on),
-          ),
-          title: Text('Creator Earnings'),
-          subtitle: Text('Video monetization'),
-          trailing: Text('৳ 2,450'),
-        ),
-
-        const ListTile(
-          leading: CircleAvatar(
-            child: Icon(Icons.ads_click),
-          ),
-          title: Text('Ad Revenue'),
-          subtitle: Text('Advertisements'),
-          trailing: Text('৳ 800'),
-        ),
-
-        const SizedBox(height: 20),
-
-        SizedBox(
-          height: 50,
-          child: FilledButton(
-            onPressed: () {},
-            child: const Text('Request Withdrawal'),
-          ),
-        ),
-      ],
-    );
-  }
-}
+// ------------------------------------------------------------
+// PROFILE
+// ------------------------------------------------------------
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(18),
-      children: [
-        const SizedBox(height: 15),
+    final user =
+        FirebaseAuth.instance.currentUser;
 
-        const Center(
-          child: CircleAvatar(
-            radius: 48,
-            child: Icon(
-              Icons.person,
-              size: 55,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'My Channel',
+        ),
+        actions: [
+          IconButton(
+            onPressed: () =>
+                FirebaseAuth.instance.signOut(),
+            icon: const Icon(
+              Icons.logout,
             ),
           ),
-        ),
+        ],
+      ),
+      body: StreamBuilder<
+          DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('channels')
+            .doc(user?.uid)
+            .snapshots(),
 
-        const SizedBox(height: 14),
+        builder: (context, snapshot) {
+          final data =
+              snapshot.data?.data();
 
-        const Center(
-          child: Text(
-            'CrazyTube Creator',
-            style: TextStyle(
-              fontSize: 23,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+          return ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              const SizedBox(height: 15),
 
-        const Center(
-          child: Text(
-            '@crazycreator',
-            style: TextStyle(
-              color: Colors.white54,
-            ),
-          ),
-        ),
+              CircleAvatar(
+                radius: 50,
+                backgroundImage:
+                    user?.photoURL != null
+                        ? NetworkImage(
+                            user!.photoURL!,
+                          )
+                        : null,
+                child:
+                    user?.photoURL == null
+                        ? const Icon(
+                            Icons.person,
+                            size: 50,
+                          )
+                        : null,
+              ),
 
-        const SizedBox(height: 25),
+              const SizedBox(height: 15),
 
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: const [
-            _ProfileStat(
-              number: '125',
-              label: 'Videos',
-            ),
-            _ProfileStat(
-              number: '12.5K',
-              label: 'Followers',
-            ),
-            _ProfileStat(
-              number: '850K',
-              label: 'Views',
-            ),
-          ],
-        ),
+              Center(
+                child: Text(
+                  data?['channelName'] ??
+                      'My Channel',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight:
+                        FontWeight.bold,
+                  ),
+                ),
+              ),
 
-        const SizedBox(height: 25),
+              const SizedBox(height: 8),
 
-        ListTile(
-          leading: const Icon(Icons.video_library),
-          title: const Text('Creator Studio'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {},
-        ),
+              Center(
+                child: Text(
+                  user?.email ?? '',
+                  style: const TextStyle(
+                    color: Colors.white54,
+                  ),
+                ),
+              ),
 
-        ListTile(
-          leading: const Icon(Icons.settings),
-          title: const Text('Settings'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {},
-        ),
+              const SizedBox(height: 25),
 
-        ListTile(
-          leading: const Icon(Icons.help_outline),
-          title: const Text('Help & Support'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {},
-        ),
-      ],
+              Row(
+                mainAxisAlignment:
+                    MainAxisAlignment.spaceEvenly,
+                children: [
+                  _Stat(
+                    value:
+                        '${data?['videos'] ?? 0}',
+                    label: 'Videos',
+                  ),
+                  _Stat(
+                    value:
+                        '${data?['followers'] ?? 0}',
+                    label: 'Followers',
+                  ),
+                  _Stat(
+                    value:
+                        '${data?['views'] ?? 0}',
+                    label: 'Views',
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
 
-class _ProfileStat extends StatelessWidget {
-  final String number;
+class _Stat extends StatelessWidget {
+  final String value;
   final String label;
 
-  const _ProfileStat({
-    required this.number,
+  const _Stat({
+    required this.value,
     required this.label,
   });
 
@@ -686,10 +1018,11 @@ class _ProfileStat extends StatelessWidget {
     return Column(
       children: [
         Text(
-          number,
+          value,
           style: const TextStyle(
             fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontWeight:
+                FontWeight.bold,
           ),
         ),
         const SizedBox(height: 4),
