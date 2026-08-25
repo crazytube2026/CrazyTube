@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "9473811896-n4oj65quu13kp1jmbj8d1hbeie4ks2r3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.crazytube.app",
+            "certificate_hash": "061ae6e0e5f7655070f4a70ad868fcd22dd1c0a7"
+          }
+        },
+        {
           "client_id": "9473811896-ufc84iauf73rj40nlecvl8i5if7vd96n.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
