@@ -72,24 +72,39 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
-      - name: Sign APK with Android debug certificate
+      - name: Create signing keystore
+        run: |
+          keytool -genkeypair \
+            -v \
+            -keystore crazytube-release.jks \
+            -alias crazytube \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass crazytube123 \
+            -keypass crazytube123 \
+            -dname "CN=CrazyTube, OU=CrazyTube, O=CrazyTube, L=Dhaka, ST=Dhaka, C=BD"
+
+      - name: Sign APK
         run: |
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
 
           "$APKSIGNER" sign \
-            --ks "$HOME/.android/debug.keystore" \
-            --ks-key-alias androiddebugkey \
-            --ks-pass pass:android \
-            --key-pass pass:android \
+            --ks crazytube-release.jks \
+            --ks-key-alias crazytube \
+            --ks-pass pass:crazytube123 \
+            --key-pass pass:crazytube123 \
             --out build/app/outputs/flutter-apk/app-release-signed.apk \
             build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Verify APK certificate
+      - name: Get release SHA fingerprints
         run: |
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
 
+          echo "===== CRAZYTUBE RELEASE CERTIFICATE ====="
           "$APKSIGNER" verify --print-certs \
             build/app/outputs/flutter-apk/app-release-signed.apk
+          echo "===== END CERTIFICATE ====="
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
